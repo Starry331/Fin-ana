@@ -347,6 +347,158 @@ def health_check():
     """健康检查"""
     return jsonify({'status': 'ok', 'timestamp': datetime.now().isoformat()})
 
+@app.route('/api/kline/<symbol>', methods=['GET'])
+def get_kline_data(symbol):
+    """获取多周期K线数据"""
+    try:
+        interval = request.args.get('interval', '1d')
+        period = request.args.get('period', '3mo')
+        
+        interval_map = {
+            '1h': ('5d', '1h'),
+            '1d': (period, '1d'),
+            '1wk': ('2y', '1wk'),
+            '1mo': ('5y', '1mo')
+        }
+        
+        if interval not in interval_map:
+            interval = '1d'
+        
+        actual_period, actual_interval = interval_map[interval]
+        if interval == '1d':
+            actual_period = period
+        
+        stock = yf.Ticker(symbol)
+        data = stock.history(period=actual_period, interval=actual_interval)
+        
+        if data.empty:
+            return jsonify({'error': '无法获取K线数据'}), 404
+        
+        candle_data = []
+        for dt, row in data.iterrows():
+            time_format = '%Y-%m-%d %H:%M' if interval == '1h' else '%Y-%m-%d'
+            candle_data.append({
+                'time': dt.strftime(time_format),
+                'open': round(row['Open'], 2),
+                'high': round(row['High'], 2),
+                'low': round(row['Low'], 2),
+                'close': round(row['Close'], 2),
+                'volume': int(row['Volume']),
+                'change': round((row['Close'] - row['Open']) / row['Open'] * 100, 2) if row['Open'] > 0 else 0
+            })
+        
+        return jsonify({
+            'symbol': symbol.upper(),
+            'interval': interval,
+            'period': actual_period,
+            'data': candle_data,
+            'last_price': round(data['Close'].iloc[-1], 2)
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/quantitative/<symbol>', methods=['GET'])
+def get_quantitative_analysis(symbol):
+    """获取量化细致分析"""
+    try:
+        stock = yf.Ticker(symbol)
+        data = stock.history(period='1y')
+        
+        if data.empty or len(data) < 30:
+            return jsonify({'error': '数据不足'}), 404
+        
+        closes = data['Close']
+        returns = closes.pct_change().dropna()
+        
+        ma5 = closes.rolling(5).mean().iloc[-1]
+        ma10 = closes.rolling(10).mean().iloc[-1]
+        ma20 = closes.rolling(20).mean().iloc[-1]
+        ma60 = closes.rolling(60).mean().iloc[-1] if len(closes) >= 60 else None
+        
+        delta = closes.diff()
+        gain = (delta.where(delta > 0, 0)).rolling(14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
+        rs = gain / loss
+        rsi = 100 - (100 / (1 + rs)).iloc[-1]
+        
+        ema12 = closes.ewm(span=12).mean()
+        ema26 = closes.ewm(span=26).mean()
+        macd = ema12 - ema26
+        signal = macd.ewm(span=9).mean()
+        macd_hist = macd - signal
+        
+        bb_ma = closes.rolling(20).mean()
+        bb_std = closes.rolling(20).std()
+        bb_upper = bb_ma + 2 * bb_std
+        bb_lower = bb_ma - 2 * bb_std
+        
+        lowest_14 = closes.rolling(14).min()
+        highest_14 = closes.rolling(14).max()
+        k = 100 * (closes - lowest_14) / (highest_14 - lowest_14)
+        d = k.rolling(3).mean()
+        
+        skewness = returns.skew()
+        kurtosis = returns.kurtosis()
+        
+        current_price = closes.iloc[-1]
+        
+        signals = []
+        if current_price > ma5.item() if hasattr(ma5, 'item') else ma5:
+            signals.append({'type': 'bullish', 'indicator': 'MA5', 'desc': '价格在5日均线上方'})
+        else:
+            signals.append({'type': 'bearish', 'indicator': 'MA5', 'desc': '价格在5日均线下方'})
+        
+        rsi_val = rsi.item() if hasattr(rsi, 'item') else rsi
+        if rsi_val > 70:
+            signals.append({'type': 'bearish', 'indicator': 'RSI', 'desc': f'RSI={rsi_val:.1f} 超买区域'})
+        elif rsi_val < 30:
+            signals.append({'type': 'bullish', 'indicator': 'RSI', 'desc': f'RSI={rsi_val:.1f} 超卖区域'})
+        else:
+            signals.append({'type': 'neutral', 'indicator': 'RSI', 'desc': f'RSI={rsi_val:.1f} 中性区域'})
+        
+        macd_val = macd.iloc[-1]
+        signal_val = signal.iloc[-1]
+        if macd_val > signal_val:
+            signals.append({'type': 'bullish', 'indicator': 'MACD', 'desc': 'MACD金叉，看多信号'})
+        else:
+            signals.append({'type': 'bearish', 'indicator': 'MACD', 'desc': 'MACD死叉，看空信号'})
+        
+        return jsonify({
+            'symbol': symbol.upper(),
+            'current_price': round(current_price, 2),
+            'moving_averages': {
+                'ma5': round(ma5, 2),
+                'ma10': round(ma10, 2),
+                'ma20': round(ma20, 2),
+                'ma60': round(ma60, 2) if ma60 else None
+            },
+            'indicators': {
+                'rsi': round(rsi_val, 2),
+                'macd': round(macd.iloc[-1], 4),
+                'macd_signal': round(signal.iloc[-1], 4),
+                'macd_hist': round(macd_hist.iloc[-1], 4),
+                'kdj_k': round(k.iloc[-1], 2),
+                'kdj_d': round(d.iloc[-1], 2)
+            },
+            'bollinger': {
+                'upper': round(bb_upper.iloc[-1], 2),
+                'middle': round(bb_ma.iloc[-1], 2),
+                'lower': round(bb_lower.iloc[-1], 2)
+            },
+            'statistics': {
+                'skewness': round(skewness, 4),
+                'kurtosis': round(kurtosis, 4),
+                'daily_volatility': round(returns.std() * 100, 2),
+                'annual_volatility': round(returns.std() * np.sqrt(252) * 100, 2),
+                'avg_daily_return': round(returns.mean() * 100, 4),
+                'cumulative_return': round((closes.iloc[-1] / closes.iloc[0] - 1) * 100, 2)
+            },
+            'signals': signals,
+            'trend': 'bullish' if len([s for s in signals if s['type'] == 'bullish']) > len([s for s in signals if s['type'] == 'bearish']) else 'bearish'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/daily-kline/<symbol>', methods=['GET'])
 def get_daily_kline(symbol):
     """获取日K线数据"""

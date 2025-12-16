@@ -99,8 +99,10 @@ function App() {
   const [predictionComparison, setPredictionComparison] = useState(null);
   const [userPredictionSaved, setUserPredictionSaved] = useState(false);
   const [dailyKline, setDailyKline] = useState(null);
-  const [klineType, setKlineType] = useState('daily');
+  const [klineType, setKlineType] = useState('1d');
+  const [klineData, setKlineData] = useState(null);
   const [savedHours, setSavedHours] = useState([]);
+  const [quantData, setQuantData] = useState(null);
   const [watchlist, setWatchlist] = useState(() => {
     const saved = localStorage.getItem('finrisk_watchlist');
     return saved ? JSON.parse(saved) : [];
@@ -237,6 +239,26 @@ function App() {
       setDailyKline(res.data);
     } catch (err) {
       console.error('获取日K线失败:', err);
+    }
+  };
+
+  const fetchKline = async (symbol, interval = '1d', period = '3mo') => {
+    if (!symbol) return;
+    try {
+      const res = await axios.get(`${API_BASE}/kline/${symbol}?interval=${interval}&period=${period}`);
+      setKlineData(res.data);
+    } catch (err) {
+      console.error('获取K线失败:', err);
+    }
+  };
+
+  const fetchQuantitative = async (symbol) => {
+    if (!symbol) return;
+    try {
+      const res = await axios.get(`${API_BASE}/quantitative/${symbol}`);
+      setQuantData(res.data);
+    } catch (err) {
+      console.error('获取量化分析失败:', err);
     }
   };
 
@@ -1162,12 +1184,13 @@ function App() {
             <Activity size={40} color="#64748b" />
           </div>
           <h3 className="empty-state-title">K线图表</h3>
-          <p className="empty-state-text">请先搜索一只股票，查看日K线和时K线数据</p>
+          <p className="empty-state-text">请先搜索一只股票，查看多周期K线数据</p>
         </div>
       );
     }
 
-    const klineData = klineType === 'daily' ? dailyKline?.data : hourlyData?.data;
+    const klineLabels = { '1h': '时K', '1d': '日K', '1wk': '周K', '1mo': '月K' };
+    const displayData = klineData?.data || hourlyData?.data || dailyKline?.data;
 
     return (
       <>
@@ -1177,36 +1200,33 @@ function App() {
           </div>
           <div className="stock-info">
             <div className="stock-symbol">{stockData.symbol} K线图</div>
-            <div className="stock-name">{klineType === 'daily' ? '日K线' : '时K线'}</div>
+            <div className="stock-name">{klineLabels[klineType] || '日K'}线</div>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button
-              className={`btn ${klineType === 'daily' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => { setKlineType('daily'); fetchDailyKline(stockData.symbol); }}
-            >
-              日K线
-            </button>
-            <button
-              className={`btn ${klineType === 'hourly' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => { setKlineType('hourly'); fetchHourlyData(stockData.symbol); }}
-            >
-              时K线
-            </button>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {['1h', '1d', '1wk', '1mo'].map(type => (
+              <button
+                key={type}
+                className={`btn ${klineType === type ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => { setKlineType(type); fetchKline(stockData.symbol, type); }}
+              >
+                {klineLabels[type]}
+              </button>
+            ))}
           </div>
         </div>
 
         <div className="card">
           <div className="card-header">
             <div className="card-title">
-              <BarChart3 size={18} /> {klineType === 'daily' ? '日K线走势' : '小时K线走势'}
+              <BarChart3 size={18} /> {klineLabels[klineType]}线走势
             </div>
-            {klineType === 'daily' && (
+            {klineType === '1d' && (
               <div className="period-selector">
                 {['1mo', '3mo', '6mo', '1y'].map(p => (
                   <button
                     key={p}
-                    className={`period-btn ${dailyKline?.period === p ? 'active' : ''}`}
-                    onClick={() => fetchDailyKline(stockData.symbol, p)}
+                    className={`period-btn ${klineData?.period === p ? 'active' : ''}`}
+                    onClick={() => fetchKline(stockData.symbol, '1d', p)}
                   >
                     {p}
                   </button>
@@ -1216,22 +1236,22 @@ function App() {
           </div>
           <div className="card-body">
             <div className="chart-container" style={{ height: '450px' }}>
-              {klineData && klineData.length > 0 ? (
+              {displayData && displayData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={klineData.slice(-60)}>
+                  <ComposedChart data={displayData.slice(-60)}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                     <XAxis 
                       dataKey="time" 
                       stroke="#64748b"
                       tick={{ fill: '#64748b', fontSize: 10 }}
-                      tickFormatter={(val) => klineType === 'daily' ? val.slice(5) : val.slice(11, 16)}
+                      tickFormatter={(val) => klineType === '1h' ? val.slice(11, 16) : val.slice(5)}
                     />
                     <YAxis 
                       stroke="#64748b"
                       tick={{ fill: '#64748b', fontSize: 12 }}
                       domain={['auto', 'auto']}
                     />
-                    <Tooltip content={({ active, payload, label }) => {
+                    <Tooltip content={({ active, payload }) => {
                       if (active && payload && payload.length) {
                         const d = payload[0].payload;
                         return (
@@ -1241,26 +1261,17 @@ function App() {
                             <p style={{ color: '#22c55e' }}>高: ${d.high}</p>
                             <p style={{ color: '#ef4444' }}>低: ${d.low}</p>
                             <p style={{ color: '#3b82f6' }}>收: ${d.close}</p>
+                            <p style={{ color: '#a855f7' }}>涨跌: {d.change}%</p>
                           </div>
                         );
                       }
                       return null;
                     }} />
-                    <Bar dataKey="high" fill="transparent" />
-                    {klineData.slice(-60).map((entry, index) => {
-                      const isUp = entry.close >= entry.open;
-                      return (
-                        <ReferenceLine
-                          key={`wick-${index}`}
-                          segment={[
-                            { x: entry.time, y: entry.low },
-                            { x: entry.time, y: entry.high }
-                          ]}
-                          stroke={isUp ? '#22c55e' : '#ef4444'}
-                          strokeWidth={1}
-                        />
-                      );
-                    })}
+                    <Bar dataKey="close" fill="#3b82f6" name="收盘价">
+                      {displayData.slice(-60).map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.close >= entry.open ? '#22c55e' : '#ef4444'} />
+                      ))}
+                    </Bar>
                     <Line 
                       type="monotone" 
                       dataKey="close" 
@@ -1273,18 +1284,18 @@ function App() {
                 </ResponsiveContainer>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#64748b' }}>
-                  加载中...
+                  点击上方按钮加载K线数据...
                 </div>
               )}
             </div>
           </div>
         </div>
 
-        {klineData && (
+        {displayData && (
           <div className="card" style={{ marginTop: '1.5rem' }}>
             <div className="card-header">
               <div className="card-title">
-                <Target size={18} /> K线数据明细 (最近20条)
+                <Target size={18} /> {klineLabels[klineType]}线数据明细 (最近20条)
               </div>
             </div>
             <div className="card-body">
@@ -1301,7 +1312,7 @@ function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {klineData.slice(-20).reverse().map((item, idx) => {
+                    {displayData.slice(-20).reverse().map((item, idx) => {
                       const change = ((item.close - item.open) / item.open * 100).toFixed(2);
                       const isUp = item.close >= item.open;
                       return (
@@ -1323,6 +1334,183 @@ function App() {
             </div>
           </div>
         )}
+      </>
+    );
+  };
+
+  const renderQuantitative = () => {
+    if (!stockData) {
+      return (
+        <div className="empty-state">
+          <div className="empty-state-icon">
+            <PieChart size={40} color="#64748b" />
+          </div>
+          <h3 className="empty-state-title">量化细致分析</h3>
+          <p className="empty-state-text">请先搜索一只股票，查看技术指标和量化分析</p>
+        </div>
+      );
+    }
+
+    if (!quantData) {
+      return (
+        <div className="loading-overlay" style={{ minHeight: '400px' }}>
+          <div className="spinner"></div>
+          <p>正在进行量化分析...</p>
+        </div>
+      );
+    }
+
+    return (
+      <>
+        <div className="stock-header">
+          <div className="stock-icon" style={{ background: 'linear-gradient(135deg, #ec4899 0%, #a855f7 100%)' }}>
+            <PieChart size={28} />
+          </div>
+          <div className="stock-info">
+            <div className="stock-symbol">{stockData.symbol} 量化分析</div>
+            <div className="stock-name">技术指标与趋势分析</div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <span style={{ 
+              padding: '0.5rem 1rem', 
+              borderRadius: '20px', 
+              background: quantData.trend === 'bullish' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+              color: quantData.trend === 'bullish' ? '#22c55e' : '#ef4444',
+              fontWeight: 600
+            }}>
+              {quantData.trend === 'bullish' ? '📈 看多趋势' : '📉 看空趋势'}
+            </span>
+            <button className="btn btn-secondary" onClick={() => fetchQuantitative(stockData.symbol)}>
+              <RefreshCw size={16} /> 刷新
+            </button>
+          </div>
+        </div>
+
+        <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+          <div className="metric-card">
+            <div className="metric-label">RSI(14)</div>
+            <div className="metric-value" style={{ color: quantData.indicators.rsi > 70 ? '#ef4444' : quantData.indicators.rsi < 30 ? '#22c55e' : '#eab308' }}>
+              {quantData.indicators.rsi}
+            </div>
+            <div className="metric-change">{quantData.indicators.rsi > 70 ? '超买' : quantData.indicators.rsi < 30 ? '超卖' : '中性'}</div>
+          </div>
+          <div className="metric-card">
+            <div className="metric-label">MACD</div>
+            <div className="metric-value" style={{ color: quantData.indicators.macd > quantData.indicators.macd_signal ? '#22c55e' : '#ef4444' }}>
+              {quantData.indicators.macd}
+            </div>
+            <div className="metric-change">{quantData.indicators.macd > quantData.indicators.macd_signal ? '金叉' : '死叉'}</div>
+          </div>
+          <div className="metric-card">
+            <div className="metric-label">KDJ-K</div>
+            <div className="metric-value" style={{ color: '#3b82f6' }}>{quantData.indicators.kdj_k}</div>
+            <div className="metric-change">D值: {quantData.indicators.kdj_d}</div>
+          </div>
+          <div className="metric-card">
+            <div className="metric-label">累计收益</div>
+            <div className="metric-value" style={{ color: quantData.statistics.cumulative_return > 0 ? '#22c55e' : '#ef4444' }}>
+              {quantData.statistics.cumulative_return > 0 ? '+' : ''}{quantData.statistics.cumulative_return}%
+            </div>
+            <div className="metric-change">年化波动: {quantData.statistics.annual_volatility}%</div>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '1.5rem' }}>
+          <div className="card">
+            <div className="card-header">
+              <div className="card-title"><Activity size={18} /> 均线系统</div>
+            </div>
+            <div className="card-body">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+                {['ma5', 'ma10', 'ma20', 'ma60'].map(ma => (
+                  <div key={ma} style={{ padding: '1rem', background: '#1e293b', borderRadius: '8px' }}>
+                    <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>{ma.toUpperCase()}</div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 600, color: quantData.current_price > (quantData.moving_averages[ma] || 0) ? '#22c55e' : '#ef4444' }}>
+                      ${quantData.moving_averages[ma] || '-'}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: quantData.current_price > (quantData.moving_averages[ma] || 0) ? '#22c55e' : '#ef4444' }}>
+                      {quantData.current_price > (quantData.moving_averages[ma] || 0) ? '▲ 价格在上' : '▼ 价格在下'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-header">
+              <div className="card-title"><Target size={18} /> 布林带</div>
+            </div>
+            <div className="card-body">
+              <div style={{ padding: '1rem', background: '#1e293b', borderRadius: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                  <span style={{ color: '#22c55e' }}>上轨: ${quantData.bollinger.upper}</span>
+                  <span style={{ color: '#ef4444' }}>下轨: ${quantData.bollinger.lower}</span>
+                </div>
+                <div style={{ height: '20px', background: 'linear-gradient(90deg, #ef4444 0%, #eab308 50%, #22c55e 100%)', borderRadius: '10px', position: 'relative' }}>
+                  <div style={{
+                    position: 'absolute',
+                    left: `${Math.min(100, Math.max(0, (quantData.current_price - quantData.bollinger.lower) / (quantData.bollinger.upper - quantData.bollinger.lower) * 100))}%`,
+                    top: '-5px',
+                    width: '10px',
+                    height: '30px',
+                    background: '#3b82f6',
+                    borderRadius: '5px',
+                    transform: 'translateX(-50%)'
+                  }} />
+                </div>
+                <div style={{ textAlign: 'center', marginTop: '0.5rem', color: '#94a3b8' }}>
+                  当前价: ${quantData.current_price} | 中轨: ${quantData.bollinger.middle}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card" style={{ marginTop: '1.5rem' }}>
+          <div className="card-header">
+            <div className="card-title"><AlertTriangle size={18} /> 交易信号</div>
+          </div>
+          <div className="card-body">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+              {quantData.signals.map((signal, idx) => (
+                <div key={idx} style={{
+                  padding: '1rem',
+                  background: signal.type === 'bullish' ? 'rgba(34, 197, 94, 0.1)' : signal.type === 'bearish' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(234, 179, 8, 0.1)',
+                  borderRadius: '8px',
+                  borderLeft: `3px solid ${signal.type === 'bullish' ? '#22c55e' : signal.type === 'bearish' ? '#ef4444' : '#eab308'}`
+                }}>
+                  <div style={{ fontWeight: 600, color: signal.type === 'bullish' ? '#22c55e' : signal.type === 'bearish' ? '#ef4444' : '#eab308', marginBottom: '0.5rem' }}>
+                    {signal.indicator}
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>{signal.desc}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="card" style={{ marginTop: '1.5rem' }}>
+          <div className="card-header">
+            <div className="card-title"><BarChart3 size={18} /> 统计特征</div>
+          </div>
+          <div className="card-body">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+              <div style={{ padding: '1rem', background: '#1e293b', borderRadius: '8px', textAlign: 'center' }}>
+                <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>日波动率</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 600, color: '#f97316' }}>{quantData.statistics.daily_volatility}%</div>
+              </div>
+              <div style={{ padding: '1rem', background: '#1e293b', borderRadius: '8px', textAlign: 'center' }}>
+                <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>偏度 (Skewness)</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 600, color: '#a855f7' }}>{quantData.statistics.skewness}</div>
+              </div>
+              <div style={{ padding: '1rem', background: '#1e293b', borderRadius: '8px', textAlign: 'center' }}>
+                <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>峰度 (Kurtosis)</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 600, color: '#06b6d4' }}>{quantData.statistics.kurtosis}</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </>
     );
   };
@@ -1837,9 +2025,15 @@ function App() {
           </button>
           <button
             className={`tab ${activeTab === 'kline' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('kline'); if (stockData) { fetchDailyKline(stockData.symbol); fetchHourlyData(stockData.symbol); } }}
+            onClick={() => { setActiveTab('kline'); if (stockData) fetchKline(stockData.symbol, klineType); }}
           >
             <Activity size={16} /> K线图
+          </button>
+          <button
+            className={`tab ${activeTab === 'quant' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('quant'); if (stockData) fetchQuantitative(stockData.symbol); }}
+          >
+            <PieChart size={16} /> 量化分析
           </button>
           <button
             className={`tab ${activeTab === 'hourly' ? 'active' : ''}`}
@@ -1874,6 +2068,7 @@ function App() {
             {activeTab === 'prediction' && renderPrediction()}
             {activeTab === 'comparison' && renderComparison()}
             {activeTab === 'kline' && renderKline()}
+            {activeTab === 'quant' && renderQuantitative()}
             {activeTab === 'hourly' && renderHourlyPrediction()}
           </>
         )}
