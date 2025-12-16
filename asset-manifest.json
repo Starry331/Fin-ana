@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/Fin-ana/static/css/main.704f140c.css",
+    "main.js": "/Fin-ana/static/js/main.a50e5587.js",
+    "index.html": "/Fin-ana/index.html",
+    "main.704f140c.css.map": "/Fin-ana/static/css/main.704f140c.css.map",
+    "main.a50e5587.js.map": "/Fin-ana/static/js/main.a50e5587.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.704f140c.css",
+    "static/js/main.a50e5587.js"
+  ]
+}
