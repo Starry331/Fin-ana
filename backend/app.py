@@ -347,6 +347,39 @@ def health_check():
     """健康检查"""
     return jsonify({'status': 'ok', 'timestamp': datetime.now().isoformat()})
 
+@app.route('/api/daily-kline/<symbol>', methods=['GET'])
+def get_daily_kline(symbol):
+    """获取日K线数据"""
+    try:
+        period = request.args.get('period', '3mo')
+        stock = yf.Ticker(symbol)
+        data = stock.history(period=period, interval='1d')
+        
+        if data.empty:
+            return jsonify({'error': '无法获取日K线数据'}), 404
+        
+        candle_data = []
+        for dt, row in data.iterrows():
+            candle_data.append({
+                'time': dt.strftime('%Y-%m-%d'),
+                'open': round(row['Open'], 2),
+                'high': round(row['High'], 2),
+                'low': round(row['Low'], 2),
+                'close': round(row['Close'], 2),
+                'volume': int(row['Volume']),
+                'change': round((row['Close'] - row['Open']) / row['Open'] * 100, 2)
+            })
+        
+        return jsonify({
+            'symbol': symbol.upper(),
+            'interval': '1d',
+            'period': period,
+            'data': candle_data,
+            'last_price': round(data['Close'].iloc[-1], 2)
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/hourly/<symbol>', methods=['GET'])
 def get_hourly_data(symbol):
     """获取小时级K线数据"""

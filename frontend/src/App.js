@@ -98,6 +98,9 @@ function App() {
   const [hourlyLoading, setHourlyLoading] = useState(false);
   const [predictionComparison, setPredictionComparison] = useState(null);
   const [userPredictionSaved, setUserPredictionSaved] = useState(false);
+  const [dailyKline, setDailyKline] = useState(null);
+  const [klineType, setKlineType] = useState('daily');
+  const [savedHours, setSavedHours] = useState([]);
   const [watchlist, setWatchlist] = useState(() => {
     const saved = localStorage.getItem('finrisk_watchlist');
     return saved ? JSON.parse(saved) : [];
@@ -220,10 +223,40 @@ function App() {
         { hour: 5, open: '', high: '', low: '', close: '' }
       ]);
       setUserPredictionSaved(false);
+      setSavedHours([]);
     } catch (err) {
       console.error('获取小时数据失败:', err);
     }
     setHourlyLoading(false);
+  };
+
+  const fetchDailyKline = async (symbol, klinePeriod = '3mo') => {
+    if (!symbol) return;
+    try {
+      const res = await axios.get(`${API_BASE}/daily-kline/${symbol}?period=${klinePeriod}`);
+      setDailyKline(res.data);
+    } catch (err) {
+      console.error('获取日K线失败:', err);
+    }
+  };
+
+  const saveHourPrediction = (hourIndex) => {
+    const pred = userPredictions[hourIndex];
+    if (!pred.open || !pred.high || !pred.low || !pred.close) {
+      alert('请填写完整的预测数据');
+      return;
+    }
+    if (parseFloat(pred.high) < parseFloat(pred.open) || parseFloat(pred.high) < parseFloat(pred.close)) {
+      alert('最高价必须>=开盘价和收盘价');
+      return;
+    }
+    if (parseFloat(pred.low) > parseFloat(pred.open) || parseFloat(pred.low) > parseFloat(pred.close)) {
+      alert('最低价必须<=开盘价和收盘价');
+      return;
+    }
+    if (!savedHours.includes(hourIndex)) {
+      setSavedHours([...savedHours, hourIndex]);
+    }
   };
 
   const updateUserPrediction = (index, field, value) => {
@@ -1121,6 +1154,179 @@ function App() {
     );
   };
 
+  const renderKline = () => {
+    if (!stockData) {
+      return (
+        <div className="empty-state">
+          <div className="empty-state-icon">
+            <Activity size={40} color="#64748b" />
+          </div>
+          <h3 className="empty-state-title">K线图表</h3>
+          <p className="empty-state-text">请先搜索一只股票，查看日K线和时K线数据</p>
+        </div>
+      );
+    }
+
+    const klineData = klineType === 'daily' ? dailyKline?.data : hourlyData?.data;
+
+    return (
+      <>
+        <div className="stock-header">
+          <div className="stock-icon" style={{ background: 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)' }}>
+            <Activity size={28} />
+          </div>
+          <div className="stock-info">
+            <div className="stock-symbol">{stockData.symbol} K线图</div>
+            <div className="stock-name">{klineType === 'daily' ? '日K线' : '时K线'}</div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              className={`btn ${klineType === 'daily' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => { setKlineType('daily'); fetchDailyKline(stockData.symbol); }}
+            >
+              日K线
+            </button>
+            <button
+              className={`btn ${klineType === 'hourly' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => { setKlineType('hourly'); fetchHourlyData(stockData.symbol); }}
+            >
+              时K线
+            </button>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title">
+              <BarChart3 size={18} /> {klineType === 'daily' ? '日K线走势' : '小时K线走势'}
+            </div>
+            {klineType === 'daily' && (
+              <div className="period-selector">
+                {['1mo', '3mo', '6mo', '1y'].map(p => (
+                  <button
+                    key={p}
+                    className={`period-btn ${dailyKline?.period === p ? 'active' : ''}`}
+                    onClick={() => fetchDailyKline(stockData.symbol, p)}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="card-body">
+            <div className="chart-container" style={{ height: '450px' }}>
+              {klineData && klineData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={klineData.slice(-60)}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                    <XAxis 
+                      dataKey="time" 
+                      stroke="#64748b"
+                      tick={{ fill: '#64748b', fontSize: 10 }}
+                      tickFormatter={(val) => klineType === 'daily' ? val.slice(5) : val.slice(11, 16)}
+                    />
+                    <YAxis 
+                      stroke="#64748b"
+                      tick={{ fill: '#64748b', fontSize: 12 }}
+                      domain={['auto', 'auto']}
+                    />
+                    <Tooltip content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        const d = payload[0].payload;
+                        return (
+                          <div style={{ background: '#1e293b', padding: '12px', borderRadius: '8px', border: '1px solid #334155' }}>
+                            <p style={{ color: '#94a3b8', marginBottom: '8px' }}>{d.time}</p>
+                            <p style={{ color: '#f8fafc' }}>开: ${d.open}</p>
+                            <p style={{ color: '#22c55e' }}>高: ${d.high}</p>
+                            <p style={{ color: '#ef4444' }}>低: ${d.low}</p>
+                            <p style={{ color: '#3b82f6' }}>收: ${d.close}</p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }} />
+                    <Bar dataKey="high" fill="transparent" />
+                    {klineData.slice(-60).map((entry, index) => {
+                      const isUp = entry.close >= entry.open;
+                      return (
+                        <ReferenceLine
+                          key={`wick-${index}`}
+                          segment={[
+                            { x: entry.time, y: entry.low },
+                            { x: entry.time, y: entry.high }
+                          ]}
+                          stroke={isUp ? '#22c55e' : '#ef4444'}
+                          strokeWidth={1}
+                        />
+                      );
+                    })}
+                    <Line 
+                      type="monotone" 
+                      dataKey="close" 
+                      stroke="#3b82f6" 
+                      strokeWidth={2}
+                      dot={false}
+                      name="收盘价"
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#64748b' }}>
+                  加载中...
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {klineData && (
+          <div className="card" style={{ marginTop: '1.5rem' }}>
+            <div className="card-header">
+              <div className="card-title">
+                <Target size={18} /> K线数据明细 (最近20条)
+              </div>
+            </div>
+            <div className="card-body">
+              <div style={{ overflowX: 'auto' }}>
+                <table className="comparison-table">
+                  <thead>
+                    <tr>
+                      <th>时间</th>
+                      <th>开盘</th>
+                      <th>最高</th>
+                      <th>最低</th>
+                      <th>收盘</th>
+                      <th>涨跌</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {klineData.slice(-20).reverse().map((item, idx) => {
+                      const change = ((item.close - item.open) / item.open * 100).toFixed(2);
+                      const isUp = item.close >= item.open;
+                      return (
+                        <tr key={idx}>
+                          <td>{item.time}</td>
+                          <td>${item.open}</td>
+                          <td style={{ color: '#22c55e' }}>${item.high}</td>
+                          <td style={{ color: '#ef4444' }}>${item.low}</td>
+                          <td style={{ fontWeight: 600 }}>${item.close}</td>
+                          <td style={{ color: isUp ? '#22c55e' : '#ef4444' }}>
+                            {isUp ? '+' : ''}{change}%
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  };
+
   const renderHourlyPrediction = () => {
     if (!stockData) {
       return (
@@ -1249,11 +1455,12 @@ function App() {
                       <th style={{ padding: '0.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.8rem' }}>最高</th>
                       <th style={{ padding: '0.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.8rem' }}>最低</th>
                       <th style={{ padding: '0.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.8rem' }}>收盘</th>
+                      <th style={{ padding: '0.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.8rem' }}>操作</th>
                     </tr>
                   </thead>
                   <tbody>
                     {userPredictions.map((pred, idx) => (
-                      <tr key={idx}>
+                      <tr key={idx} style={{ background: savedHours.includes(idx) ? 'rgba(34, 197, 94, 0.1)' : 'transparent' }}>
                         <td style={{ padding: '0.5rem', fontWeight: 600 }}>+{pred.hour}h</td>
                         <td style={{ padding: '0.25rem' }}>
                           <input
@@ -1324,6 +1531,22 @@ function App() {
                             }}
                           />
                         </td>
+                        <td style={{ padding: '0.25rem' }}>
+                          <button
+                            onClick={() => saveHourPrediction(idx)}
+                            style={{
+                              padding: '0.4rem 0.6rem',
+                              background: savedHours.includes(idx) ? '#22c55e' : '#475569',
+                              border: 'none',
+                              borderRadius: '4px',
+                              color: 'white',
+                              cursor: 'pointer',
+                              fontSize: '0.75rem'
+                            }}
+                          >
+                            {savedHours.includes(idx) ? '✓' : '保存'}
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1337,9 +1560,14 @@ function App() {
                 {userPredictionSaved ? (
                   <><Eye size={16} /> 已保存 - 查看对比</>
                 ) : (
-                  <><Target size={16} /> 保存预测并对比</>
+                  <><Target size={16} /> 保存全部预测</>
                 )}
               </button>
+              {savedHours.length > 0 && (
+                <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#22c55e', textAlign: 'center' }}>
+                  已保存 {savedHours.length}/5 小时预测
+                </div>
+              )}
             </div>
           </div>
 
@@ -1564,7 +1792,7 @@ function App() {
       <header className="header">
         <div className="logo">
           <div className="logo-icon">FR</div>
-          <span className="logo-text">FinRisk Pro</span>
+          <span className="logo-text">FinRisk Stats</span>
         </div>
         
         <form className="search-container" onSubmit={handleSearch}>
@@ -1608,6 +1836,12 @@ function App() {
             <BarChart3 size={16} /> 对比分析
           </button>
           <button
+            className={`tab ${activeTab === 'kline' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('kline'); if (stockData) { fetchDailyKline(stockData.symbol); fetchHourlyData(stockData.symbol); } }}
+          >
+            <Activity size={16} /> K线图
+          </button>
+          <button
             className={`tab ${activeTab === 'hourly' ? 'active' : ''}`}
             onClick={() => { setActiveTab('hourly'); if (stockData) fetchHourlyData(stockData.symbol); }}
           >
@@ -1639,6 +1873,7 @@ function App() {
             {activeTab === 'overview' && renderOverview()}
             {activeTab === 'prediction' && renderPrediction()}
             {activeTab === 'comparison' && renderComparison()}
+            {activeTab === 'kline' && renderKline()}
             {activeTab === 'hourly' && renderHourlyPrediction()}
           </>
         )}
