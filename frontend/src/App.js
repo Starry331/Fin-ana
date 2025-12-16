@@ -1777,6 +1777,172 @@ function App() {
     );
   };
 
+  const renderDevelopers = () => (
+    <>
+      <div className="stock-header">
+        <div className="stock-icon" style={{ background: 'linear-gradient(135deg, #22c55e 0%, #06b6d4 100%)' }}>
+          <span style={{ fontSize: '1.5rem' }}>👨‍💻</span>
+        </div>
+        <div className="stock-info">
+          <div className="stock-symbol">开发者名单</div>
+          <div className="stock-name">FinRisk Stats 开发团队</div>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <div className="card-title"><Star size={18} /> 核心开发者</div>
+        </div>
+        <div className="card-body">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }}>
+            <div style={{ padding: '1.5rem', background: '#1e293b', borderRadius: '12px', textAlign: 'center' }}>
+              <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'linear-gradient(135deg, #a855f7 0%, #ec4899 100%)', margin: '0 auto 1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>⭐</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#f8fafc', marginBottom: '0.5rem' }}>Starry</div>
+              <div style={{ color: '#a855f7', fontSize: '0.9rem', marginBottom: '0.75rem' }}>创始人 & 主开发者</div>
+              <div style={{ color: '#94a3b8', fontSize: '0.85rem', lineHeight: 1.6 }}>
+                负责系统架构设计、前后端开发、量化模型实现
+              </div>
+              <a href="https://github.com/Starry331" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: '1rem', color: '#3b82f6', fontSize: '0.85rem' }}>
+                GitHub @Starry331
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: '1.5rem' }}>
+        <div className="card-header">
+          <div className="card-title"><Activity size={18} /> 技术栈</div>
+        </div>
+        <div className="card-body">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
+            {[
+              { name: 'React', color: '#61dafb', desc: '前端框架' },
+              { name: 'Flask', color: '#22c55e', desc: '后端API' },
+              { name: 'Python', color: '#3776ab', desc: '数据分析' },
+              { name: 'yfinance', color: '#f97316', desc: '股票数据' },
+              { name: 'ARIMA', color: '#a855f7', desc: '时序预测' },
+              { name: 'LSTM', color: '#ec4899', desc: '神经网络' },
+              { name: 'Recharts', color: '#06b6d4', desc: '图表可视化' },
+              { name: 'TailwindCSS', color: '#38bdf8', desc: 'UI样式' }
+            ].map((tech, idx) => (
+              <div key={idx} style={{ padding: '1rem', background: '#1e293b', borderRadius: '8px', borderLeft: `3px solid ${tech.color}` }}>
+                <div style={{ fontWeight: 600, color: tech.color }}>{tech.name}</div>
+                <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{tech.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: '1.5rem' }}>
+        <div className="card-header">
+          <div className="card-title"><Target size={18} /> 项目信息</div>
+        </div>
+        <div className="card-body">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+            <div style={{ padding: '1rem', background: '#1e293b', borderRadius: '8px' }}>
+              <div style={{ color: '#3b82f6', fontWeight: 600, marginBottom: '0.5rem' }}>📅 开发时间</div>
+              <div style={{ color: '#94a3b8' }}>2025年12月</div>
+            </div>
+            <div style={{ padding: '1rem', background: '#1e293b', borderRadius: '8px' }}>
+              <div style={{ color: '#22c55e', fontWeight: 600, marginBottom: '0.5rem' }}>📂 开源仓库</div>
+              <a href="https://github.com/Starry331/Fin-ana" target="_blank" rel="noopener noreferrer" style={{ color: '#94a3b8' }}>github.com/Starry331/Fin-ana</a>
+            </div>
+            <div style={{ padding: '1rem', background: '#1e293b', borderRadius: '8px' }}>
+              <div style={{ color: '#f97316', fontWeight: 600, marginBottom: '0.5rem' }}>🎯 项目目标</div>
+              <div style={{ color: '#94a3b8' }}>提供专业级金融风险分析与量化交易学习平台</div>
+            </div>
+            <div style={{ padding: '1rem', background: '#1e293b', borderRadius: '8px' }}>
+              <div style={{ color: '#a855f7', fontWeight: 600, marginBottom: '0.5rem' }}>📜 开源协议</div>
+              <div style={{ color: '#94a3b8' }}>MIT License</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
+  const renderSupport = () => (
+    <>
+      <div className="stock-header">
+        <div className="stock-icon" style={{ background: 'linear-gradient(135deg, #f97316 0%, #eab308 100%)' }}>
+          <span style={{ fontSize: '1.5rem' }}>🛠️</span>
+        </div>
+        <div className="stock-info">
+          <div className="stock-symbol">技术支持</div>
+          <div className="stock-name">常见问题与帮助文档</div>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <div className="card-title"><AlertTriangle size={18} /> 常见问题 FAQ</div>
+        </div>
+        <div className="card-body">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {[
+              { q: '为什么搜索股票后显示 Network Error?', a: '请确保后端服务正在运行。在终端执行: cd backend && python3 app.py' },
+              { q: '支持哪些股票代码?', a: '支持美股代码如 AAPL, GOOGL, TSLA, MSFT 等。中国股票需加后缀: 600519.SS(上证), 000001.SZ(深证)' },
+              { q: 'AI预测准确吗?', a: 'AI预测基于ARIMA和LSTM模型，仅供参考学习。股市有风险，预测不代表实际走势。' },
+              { q: '数据来源是什么?', a: '所有股票数据来自 Yahoo Finance (yfinance)，实时性取决于Yahoo的数据更新频率。' },
+              { q: '如何添加自选股票?', a: '搜索股票后点击"加入自选"按钮，自选股票会保存在浏览器本地存储中。' },
+              { q: '量化系统可以实盘交易吗?', a: '量化系统页面仅展示架构设计，实际交易需要对接 Alpaca/IBKR 等券商API。' }
+            ].map((faq, idx) => (
+              <div key={idx} style={{ padding: '1rem', background: '#1e293b', borderRadius: '8px' }}>
+                <div style={{ fontWeight: 600, color: '#3b82f6', marginBottom: '0.5rem' }}>Q: {faq.q}</div>
+                <div style={{ color: '#94a3b8', fontSize: '0.9rem' }}>A: {faq.a}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: '1.5rem' }}>
+        <div className="card-header">
+          <div className="card-title"><RefreshCw size={18} /> 快速启动指南</div>
+        </div>
+        <div className="card-body">
+          <div style={{ fontFamily: 'monospace', background: '#0f172a', padding: '1.5rem', borderRadius: '8px', fontSize: '0.9rem', lineHeight: 2 }}>
+            <div style={{ color: '#94a3b8' }}># 1. 安装后端依赖</div>
+            <div style={{ color: '#22c55e' }}>cd backend && pip install -r requirements.txt</div>
+            <div style={{ color: '#94a3b8', marginTop: '0.5rem' }}># 2. 启动后端服务</div>
+            <div style={{ color: '#22c55e' }}>python3 app.py</div>
+            <div style={{ color: '#94a3b8', marginTop: '0.5rem' }}># 3. 安装前端依赖</div>
+            <div style={{ color: '#22c55e' }}>cd frontend && npm install</div>
+            <div style={{ color: '#94a3b8', marginTop: '0.5rem' }}># 4. 启动前端服务</div>
+            <div style={{ color: '#22c55e' }}>npm start</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: '1.5rem' }}>
+        <div className="card-header">
+          <div className="card-title"><Shield size={18} /> 联系方式</div>
+        </div>
+        <div className="card-body">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+            <a href="https://github.com/Starry331/Fin-ana/issues" target="_blank" rel="noopener noreferrer" style={{ padding: '1.5rem', background: '#1e293b', borderRadius: '8px', textAlign: 'center', textDecoration: 'none' }}>
+              <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🐛</div>
+              <div style={{ fontWeight: 600, color: '#ef4444' }}>提交Bug</div>
+              <div style={{ color: '#94a3b8', fontSize: '0.8rem' }}>GitHub Issues</div>
+            </a>
+            <a href="https://github.com/Starry331/Fin-ana" target="_blank" rel="noopener noreferrer" style={{ padding: '1.5rem', background: '#1e293b', borderRadius: '8px', textAlign: 'center', textDecoration: 'none' }}>
+              <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⭐</div>
+              <div style={{ fontWeight: 600, color: '#eab308' }}>Star项目</div>
+              <div style={{ color: '#94a3b8', fontSize: '0.8rem' }}>GitHub Star</div>
+            </a>
+            <a href="https://github.com/Starry331" target="_blank" rel="noopener noreferrer" style={{ padding: '1.5rem', background: '#1e293b', borderRadius: '8px', textAlign: 'center', textDecoration: 'none' }}>
+              <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>👤</div>
+              <div style={{ fontWeight: 600, color: '#3b82f6' }}>关注作者</div>
+              <div style={{ color: '#94a3b8', fontSize: '0.8rem' }}>@Starry331</div>
+            </a>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
   const renderHourlyPrediction = () => {
     if (!stockData) {
       return (
@@ -2339,9 +2505,53 @@ function App() {
             {activeTab === 'quant' && renderQuantitative()}
             {activeTab === 'quantsys' && renderQuantSystem()}
             {activeTab === 'hourly' && renderHourlyPrediction()}
+            {activeTab === 'developers' && renderDevelopers()}
+            {activeTab === 'support' && renderSupport()}
           </>
         )}
       </main>
+
+      <footer style={{
+        background: '#0f172a',
+        borderTop: '1px solid #1e293b',
+        padding: '1.5rem 2rem',
+        marginTop: '2rem'
+      }}>
+        <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <div style={{ display: 'flex', gap: '2rem' }}>
+              <button 
+                onClick={() => setActiveTab('developers')}
+                style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '0.9rem' }}
+              >
+                👨‍💻 开发者名单
+              </button>
+              <button 
+                onClick={() => setActiveTab('support')}
+                style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '0.9rem' }}
+              >
+                🛠️ 技术支持
+              </button>
+              <a 
+                href="https://github.com/Starry331/Fin-ana" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={{ color: '#64748b', textDecoration: 'none', fontSize: '0.9rem' }}
+              >
+                📂 GitHub
+              </a>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ color: '#eab308', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
+                ⚠️ 仅作为分析学习用途，不构成投资建议。
+              </div>
+              <div style={{ color: '#64748b', fontSize: '0.8rem' }}>
+                © 2025-2026 @Starry. All Rights Reserved.
+              </div>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
