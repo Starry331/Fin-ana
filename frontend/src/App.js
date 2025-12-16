@@ -1515,6 +1515,268 @@ function App() {
     );
   };
 
+  const renderQuantSystem = () => {
+    const modules = [
+      { name: 'DataHub', icon: '📊', color: '#3b82f6', desc: '拉取/清洗/落盘', details: ['OHLCV数据获取', '公司行动复权', '基本面数据(可选)', 'Parquet格式存储'] },
+      { name: 'AlphaEngine', icon: '🎯', color: '#22c55e', desc: '因子计算 & 打分', details: ['动量因子(12-1, 3M)', '低波动因子', '质量/盈利因子', '横截面Z-Score'] },
+      { name: 'RiskEngine', icon: '🛡️', color: '#ef4444', desc: '风险控制', details: ['市场状态过滤', '单票权重上限', '行业偏离约束', '波动目标控制'] },
+      { name: 'PortfolioEngine', icon: '⚖️', color: '#a855f7', desc: '目标权重生成', details: ['逆波动权重', 'CVXPy优化', '换手成本惩罚', '约束裁剪归一'] },
+      { name: 'ExecutionEngine', icon: '⚡', color: '#f97316', desc: '下单与执行', details: ['TWAP分批执行', '限价单优先', '滑点控制', '成交回报对账'] },
+      { name: 'Ledger/Analytics', icon: '📈', color: '#06b6d4', desc: '绩效与监控', details: ['持仓管理', '交易记录', '绩效归因', '监控告警'] }
+    ];
+
+    const factors = [
+      { name: '12-1 动量', formula: 'ret(252) - ret(21)', weight: '35%', desc: '避开短期反转的长期动量' },
+      { name: '3M 动量', formula: 'ret(63)', weight: '15%', desc: '提升反应速度' },
+      { name: '低波动', formula: '-std(ret,63)*√252', weight: '30%', desc: '波动率取负作为加分' },
+      { name: '质量因子', formula: 'ROE/毛利率', weight: '20%', desc: '盈利质量评估' }
+    ];
+
+    const riskRules = [
+      { rule: 'SPY < MA200', action: '风险仓位降至30%', rest: '70%买短债ETF(SGOV/SHY)' },
+      { rule: 'SPY >= MA200', action: '恢复100%风险仓位', rest: '正常持仓' },
+      { rule: '单票上限', action: 'w_i <= 5%', rest: '更稳健可设3%' },
+      { rule: '行业偏离', action: '|w_sector - bench| <= 5%', rest: '防止风格押注' }
+    ];
+
+    return (
+      <>
+        <div className="stock-header">
+          <div className="stock-icon" style={{ background: 'linear-gradient(135deg, #1e40af 0%, #7c3aed 100%)' }}>
+            <Shield size={28} />
+          </div>
+          <div className="stock-info">
+            <div className="stock-symbol">量化交易系统架构</div>
+            <div className="stock-name">专业级 Long-Only 日频量化系统设计</div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title"><Activity size={18} /> 1. 系统架构 - 六大模块</div>
+          </div>
+          <div className="card-body">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+              {modules.map((mod, idx) => (
+                <div key={idx} style={{ padding: '1.25rem', background: '#1e293b', borderRadius: '12px', borderLeft: `4px solid ${mod.color}` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                    <span style={{ fontSize: '1.5rem' }}>{mod.icon}</span>
+                    <div>
+                      <div style={{ fontWeight: 700, color: mod.color }}>{mod.name}</div>
+                      <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{mod.desc}</div>
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: '#cbd5e1' }}>
+                    {mod.details.map((d, i) => <div key={i} style={{ marginBottom: '0.25rem' }}>• {d}</div>)}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '8px' }}>
+              <strong style={{ color: '#3b82f6' }}>推荐接口:</strong>
+              <span style={{ color: '#94a3b8', marginLeft: '1rem' }}>
+                交易: Alpaca (0佣金) / IBKR | 行情: Polygon (美股历史+实时)
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="card" style={{ marginTop: '1.5rem' }}>
+          <div className="card-header">
+            <div className="card-title"><Target size={18} /> 2. Universe 股票池与过滤规则</div>
+          </div>
+          <div className="card-body">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+              <div style={{ padding: '1rem', background: '#1e293b', borderRadius: '8px' }}>
+                <div style={{ fontWeight: 600, color: '#22c55e', marginBottom: '0.75rem' }}>✅ 基础宇宙</div>
+                <div style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.8 }}>
+                  <div>• Russell 1000 或 S&P 1500</div>
+                  <div>• 或: 成交额/市值前 N 名</div>
+                  <div>• 推荐从大盘股做起</div>
+                </div>
+              </div>
+              <div style={{ padding: '1rem', background: '#1e293b', borderRadius: '8px' }}>
+                <div style={{ fontWeight: 600, color: '#ef4444', marginBottom: '0.75rem' }}>🚫 每日过滤(硬规则)</div>
+                <div style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.8 }}>
+                  <div>• 价格: close {'>'} $5</div>
+                  <div>• 流动性: 20日均成交额 {'>'} 20M USD</div>
+                  <div>• 剔除: 停牌/异常/ADR/OTC/杠杆ETF</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card" style={{ marginTop: '1.5rem' }}>
+          <div className="card-header">
+            <div className="card-title"><Brain size={18} /> 3. AlphaEngine - 多因子打分(不需训练)</div>
+          </div>
+          <div className="card-body">
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid #334155' }}>
+                  <th style={{ padding: '0.75rem', textAlign: 'left', color: '#94a3b8' }}>因子</th>
+                  <th style={{ padding: '0.75rem', textAlign: 'left', color: '#94a3b8' }}>计算公式</th>
+                  <th style={{ padding: '0.75rem', textAlign: 'center', color: '#94a3b8' }}>权重</th>
+                  <th style={{ padding: '0.75rem', textAlign: 'left', color: '#94a3b8' }}>说明</th>
+                </tr>
+              </thead>
+              <tbody>
+                {factors.map((f, idx) => (
+                  <tr key={idx} style={{ borderBottom: '1px solid #1e293b' }}>
+                    <td style={{ padding: '0.75rem', fontWeight: 600, color: '#f8fafc' }}>{f.name}</td>
+                    <td style={{ padding: '0.75rem', fontFamily: 'monospace', color: '#22c55e' }}>{f.formula}</td>
+                    <td style={{ padding: '0.75rem', textAlign: 'center', color: '#a855f7', fontWeight: 600 }}>{f.weight}</td>
+                    <td style={{ padding: '0.75rem', color: '#94a3b8', fontSize: '0.9rem' }}>{f.desc}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{ marginTop: '1rem', padding: '1rem', background: '#1e293b', borderRadius: '8px' }}>
+              <div style={{ color: '#eab308', fontWeight: 600, marginBottom: '0.5rem' }}>📐 统一打分流程:</div>
+              <div style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
+                1. 横截面 Winsorize (1%/99%) → 2. 转 Z-Score → 3. 加权求和 → 4. 行业中性化
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card" style={{ marginTop: '1.5rem' }}>
+          <div className="card-header">
+            <div className="card-title"><Shield size={18} /> 4. RiskEngine - 日频风险控制</div>
+          </div>
+          <div className="card-body">
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid #334155' }}>
+                  <th style={{ padding: '0.75rem', textAlign: 'left', color: '#94a3b8' }}>触发条件</th>
+                  <th style={{ padding: '0.75rem', textAlign: 'left', color: '#94a3b8' }}>执行动作</th>
+                  <th style={{ padding: '0.75rem', textAlign: 'left', color: '#94a3b8' }}>剩余资金</th>
+                </tr>
+              </thead>
+              <tbody>
+                {riskRules.map((r, idx) => (
+                  <tr key={idx} style={{ borderBottom: '1px solid #1e293b' }}>
+                    <td style={{ padding: '0.75rem', fontFamily: 'monospace', color: '#f97316' }}>{r.rule}</td>
+                    <td style={{ padding: '0.75rem', color: '#22c55e' }}>{r.action}</td>
+                    <td style={{ padding: '0.75rem', color: '#94a3b8' }}>{r.rest}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '1.5rem' }}>
+          <div className="card">
+            <div className="card-header">
+              <div className="card-title"><BarChart3 size={18} /> 5. PortfolioEngine</div>
+            </div>
+            <div className="card-body">
+              <div style={{ marginBottom: '1rem' }}>
+                <div style={{ color: '#3b82f6', fontWeight: 600, marginBottom: '0.5rem' }}>方案A: 分层+风险平价</div>
+                <div style={{ color: '#94a3b8', fontSize: '0.85rem', lineHeight: 1.8 }}>
+                  <div>1. 取 Score 前50</div>
+                  <div>2. 权重 ∝ 1/vol_63(i)</div>
+                  <div>3. 约束裁剪 + 归一化</div>
+                </div>
+              </div>
+              <div>
+                <div style={{ color: '#a855f7', fontWeight: 600, marginBottom: '0.5rem' }}>方案B: CVXPy优化</div>
+                <div style={{ color: '#94a3b8', fontSize: '0.85rem', lineHeight: 1.8 }}>
+                  <div>max: score^T × w</div>
+                  <div>min: λ×w^TΣw + γ×||w-w_prev||</div>
+                  <div>s.t: Σw=1, 0≤w≤wmax</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-header">
+              <div className="card-title"><Clock size={18} /> 6. 调仓与执行</div>
+            </div>
+            <div className="card-body">
+              <div style={{ marginBottom: '1rem' }}>
+                <div style={{ color: '#22c55e', fontWeight: 600, marginBottom: '0.5rem' }}>📅 调仓节奏</div>
+                <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
+                  <div>• 主调仓: 每月第一个交易日</div>
+                  <div>• 日频风控: 降级/恢复判断</div>
+                </div>
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <div style={{ color: '#f97316', fontWeight: 600, marginBottom: '0.5rem' }}>💰 成本模型</div>
+                <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
+                  <div>• 大盘股: 3 bps</div>
+                  <div>• 中盘股: 8 bps</div>
+                </div>
+              </div>
+              <div>
+                <div style={{ color: '#06b6d4', fontWeight: 600, marginBottom: '0.5rem' }}>⚡ 执行策略</div>
+                <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
+                  <div>开盘后30-90分钟 TWAP</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card" style={{ marginTop: '1.5rem' }}>
+          <div className="card-header">
+            <div className="card-title"><Activity size={18} /> 7. 数据落盘与任务调度</div>
+          </div>
+          <div className="card-body">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+              <div>
+                <div style={{ color: '#3b82f6', fontWeight: 600, marginBottom: '0.75rem' }}>📁 存储格式 (Parquet)</div>
+                <div style={{ fontFamily: 'monospace', fontSize: '0.85rem', color: '#94a3b8', lineHeight: 2 }}>
+                  <div>prices.parquet → OHLCV + adj_factor</div>
+                  <div>features.parquet → factor_values</div>
+                  <div>signals.parquet → score, rank</div>
+                  <div>weights.parquet → target_weight</div>
+                  <div>trades.parquet → qty, price, fee</div>
+                </div>
+              </div>
+              <div>
+                <div style={{ color: '#22c55e', fontWeight: 600, marginBottom: '0.75rem' }}>⏰ 每日任务 (Cron/Prefect)</div>
+                <div style={{ fontSize: '0.85rem', color: '#94a3b8', lineHeight: 2 }}>
+                  <div><strong>收盘后:</strong> 更新行情 → 计算因子 → 生成权重</div>
+                  <div><strong>开盘后:</strong> 执行订单 → 对账 → 记录指标</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card" style={{ marginTop: '1.5rem', background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%)' }}>
+          <div className="card-header">
+            <div className="card-title"><Target size={18} /> 推荐配置总结</div>
+          </div>
+          <div className="card-body">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
+              <div style={{ textAlign: 'center', padding: '1rem' }}>
+                <div style={{ fontSize: '2rem', fontWeight: 700, color: '#3b82f6' }}>1000</div>
+                <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>流动性筛选后Universe</div>
+              </div>
+              <div style={{ textAlign: 'center', padding: '1rem' }}>
+                <div style={{ fontSize: '2rem', fontWeight: 700, color: '#22c55e' }}>Top 50</div>
+                <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>选股数量</div>
+              </div>
+              <div style={{ textAlign: 'center', padding: '1rem' }}>
+                <div style={{ fontSize: '2rem', fontWeight: 700, color: '#f97316' }}>5%</div>
+                <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>单票上限</div>
+              </div>
+              <div style={{ textAlign: 'center', padding: '1rem' }}>
+                <div style={{ fontSize: '2rem', fontWeight: 700, color: '#a855f7' }}>月度</div>
+                <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>主调仓周期</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  };
+
   const renderHourlyPrediction = () => {
     if (!stockData) {
       return (
@@ -2036,6 +2298,12 @@ function App() {
             <PieChart size={16} /> 量化分析
           </button>
           <button
+            className={`tab ${activeTab === 'quantsys' ? 'active' : ''}`}
+            onClick={() => setActiveTab('quantsys')}
+          >
+            <Shield size={16} /> 量化系统
+          </button>
+          <button
             className={`tab ${activeTab === 'hourly' ? 'active' : ''}`}
             onClick={() => { setActiveTab('hourly'); if (stockData) fetchHourlyData(stockData.symbol); }}
           >
@@ -2069,6 +2337,7 @@ function App() {
             {activeTab === 'comparison' && renderComparison()}
             {activeTab === 'kline' && renderKline()}
             {activeTab === 'quant' && renderQuantitative()}
+            {activeTab === 'quantsys' && renderQuantSystem()}
             {activeTab === 'hourly' && renderHourlyPrediction()}
           </>
         )}
